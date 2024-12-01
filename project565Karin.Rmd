@@ -1,0 +1,979 @@
+---
+title: "Applied_stats_project_final"
+output: pdf_document
+date: "2024-04-24"
+---
+
+## Data Description:
+
+The dataset contain economic and stock market-related information for the state of New York over a series of years and quarters. Here is a description of the columns in the dataset:
+
+
+1\. **Year:** The year of the data point.
+
+2\. **Quarter:** The quarter of the year for the data point (1 to 4).
+
+3\. **stocks_Open_Price:** The opening price of the stock in that quarter.
+
+4\. **High_Trade_Price:** The highest trading price of the stock during the quarter.
+
+5\. **Low Trade Price:** The lowest trading price of the stock during the quarter.
+
+6\. **stocks Closing Price:** The closing price of the stock at the end of the quarter.
+
+7\. **Adjusted_Close_price:** The adjusted closing price of the stock at the end of the quarter.
+
+8\. **Volume** The total number of shares traded during the quarter.
+
+9\. **Housing_Not_Seasonally_Adjusted_Purchase_Only_Index:** A metric representing the housing price index without any seasonal adjustments.
+
+10\. **Housing Seasonally-Adjusted Purchase-Only Index:** A metric representing the housing price index with seasonal adjustments to account for typical seasonal variations in housing market.
+
+11\. **Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_%_Change_Over_Previous_Quarter:** The percentage change in the non-seasonally adjusted housing purchase-only index from the previous quarter.
+
+12\. **Housing  Seasonally-Adjusted Purchase-Only Index % Change Over Previous Quarter:** The percentage change in the seasonally adjusted housing purchase-only index from the previous quarter.
+
+13\. **Housing_Not_Seasonally_Adjusted_Purchase_Only_Index% Change Over Previous 4 Quarters:** The percentage change in the non-seasonally adjusted housing purchase-only index over the previous four quarters.
+
+14\. **Housing_Seasonally_Adjusted_Purchase_Only_Index_%_Change_Over_Previous_4_Quarters:** The percentage change in the seasonally adjusted housing purchase-only index over the previous four quarters.
+
+This dataset provides a comprehensive overview of economic and stock market conditions, along with Housing Prices for New York over a specific time period.
+
+## Abstract:
+
+#### Objective
+
+The primary objective of this study is to explore the relationship between stock market dynamics and housing market indicators. The analysis will use advanced statistical techniques, including Linear Regression and Machine Learning models, to understand how these sectors interact and predict future market behaviors.
+
+#### Data
+
+The dataset comprises various metrics such as Stock Open, High, Low, and Closing Prices, Adjusted Close Prices, Trading Volume, Housing prices covering a substantial temporal range. This diversity allows for a detailed examination of the interplay between the stock and housing markets over different economic cycles.
+
+#### Methodology
+
+1. **Linear Regression**: This method will help in determining the direct relationships between stock indices and housing market variables. The effectiveness of the model will be assessed using statistical metrics like the coefficient of determination (R-squared) and the Mean Squared Error (MSE).
+   
+2. **Machine Learning Models**: Advanced algorithms such as Random Forest and Gradient Boosting will be utilized to handle the non-linear complexities in the data. These models will help in uncovering intricate patterns and feature importance, enhancing the prediction accuracy.
+
+3. **Time Series Forecasting**: Techniques such as ARIMA and Seasonal Decomposition will be applied to analyze trends, seasonality, and irregular movements in the data. Predictive models will then be built to forecast future market conditions based on historical patterns.
+
+#### Expected Outcomes
+
+This research aims to elucidate the intricate dynamics between the stock and housing markets. Linear Regression will provide insights into straightforward relationships, while Machine Learning models will reveal deeper, more complex patterns. Time Series Forecasting will contribute further by providing a forward-looking perspective, enabling predictions about future market trends.
+
+#### Significance
+
+The findings of this study will significantly benefit economists, policymakers, investors, and financial analysts by providing a clearer understanding of how fluctuations in the stock market could affect the housing sector. This knowledge is crucial for strategic decision-making in finance, real estate development, and economic policy formulation.
+
+## **Research Question:**
+
+**"How do stock market fluctuations influence key housing market indicators, and can these interactions be effectively modeled to predict future housing market trends?"**
+
+- This research question aims to dissect and model the interactions between key stock indices and housing market metrics. Understanding these relationships is vital for developing robust predictive models using Linear Regression, Machine Learning, and Time Series Forecasting, thereby assisting in strategic planning and economic forecasting.
+
+```{r}
+library(readxl)
+data <- read_excel("~/Downloads/S&P_GLobal_stock_exchange_and_US_Housing_Price_Dataset_modified_1.xlsx")
+data<-as.data.frame(data)
+head(data)
+```
+```{r}
+summary(data)
+```
+```{r}
+names(data)
+```
+
+
+```{r}
+cat("\n Missing Values in Data: \n")
+colSums(is.na(data))
+```
+
+
+```{r}
+data <- data[-95, ]
+head(data)
+```
+
+### Visualizing Stock and Housing Data: Histograms and Boxplots in R
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+
+key_columns <- c("Stocks_Open_Price", "High_Trade_Price", "Low_Trade_Price", 
+                 "Stocks_Closing_Price", "Housing_Not_Seasonally_Adjusted_Purchase_Only_Index", 
+                 "Housing_Seasonally_Adjusted_Purchase_Only_Index")
+
+# Plotting histograms
+par(mfrow = c(2, 3))  
+for (col in key_columns) {
+  hist(data[[col]], main = paste(col), xlab = col, col = 'blue', border = 'white')
+}
+
+# Detection of outliers using boxplots for the same key columns
+par(mfrow = c(2, 3))  
+for (col in key_columns) {
+  boxplot(data[[col]], main = paste(col), horizontal = TRUE, col = 'blue')
+}
+```
+
+```{r}
+pairs(data[,c("Stocks_Open_Price", "High_Trade_Price", "Low_Trade_Price", 
+              "Stocks_Closing_Price", "Housing_Not_Seasonally_Adjusted_Purchase_Only_Index", 
+              "Housing_Seasonally_Adjusted_Purchase_Only_Index")])
+```
+
+
+```{r}
+# Selecting only the specific numeric columns needed
+cols_of_interest <- c("Stocks_Open_Price", "High_Trade_Price", "Low_Trade_Price", 
+                      "Stocks_Closing_Price", "Housing_Not_Seasonally_Adjusted_Purchase_Only_Index", 
+                      "Housing_Seasonally_Adjusted_Purchase_Only_Index")
+data_numeric <- data[, cols_of_interest]
+
+# Calculate the correlation matrix for the numeric columns
+cor_matrix <- cor(data_numeric, use = "pairwise.complete.obs")  # Handles missing values
+
+# Create the heatmap using ggplot2
+cor_plot <- ggplot(data = melt(cor_matrix), aes(Var2, Var1, fill = value)) +
+  geom_tile() +  # Tiles for heatmap
+  geom_text(aes(label = sprintf("%.2f", value)), color = "white", size = 3, vjust = 1) +  # Labels for correlation values
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +  # Color gradient
+  theme_minimal() +  # Minimal theme
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),  # Rotate x-axis labels
+        axis.title.x = element_blank(),  # Remove x-axis title
+        axis.title.y = element_blank()) +  # Remove y-axis title
+  labs(title = "Correlation Heatmap", x = "Variables", y = "Variables")  # Add labels and title
+
+# Print the correlation plot
+print(cor_plot)
+
+# Save the plot as a PNG file
+ggsave("correlation_heatmap.png", plot = cor_plot, width = 15, height = 15, dpi = 300)
+```
+Based on the correlation heatmap you provided, here's a similar structured commentary suitable for your presentation:
+
+**Strong Positive Correlations:**
+
+- The stock market variables (such as 'Stocks_Open_Price', 'High_Trade_Price', 'Low_Trade_Price', and 'Stocks_Closing_Price') all show very strong positive correlations with each other, with correlation coefficients at or near 1.00. This indicates they move together very closely as they are all measures of stock market performance.
+
+- Both housing indexes ('Housing_Seasonally_Adjusted_Purchase_Only_Index' and 'Housing_Not_Seasonally_Adjusted_Purchase_Only_Index') also display strong positive correlations with the stock market variables, with coefficients predominantly around 0.87. This suggests a close relationship where, typically, as stock prices increase, housing market values tend to increase as well.
+
+In summary, the heatmap emphasizes a strong interconnection between the stock market and housing market indicators, implying that these sectors may share common driving economic factors.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+# Calculating the Year and Quarter into a single numeric representation
+Year_Quarter <- data$Year + (data$Quarter - 1) / 4
+
+# Find the range for the corrected 'Stocks_Closing_Price' column
+stock_range <- range(data$Stocks_Closing_Price, na.rm = TRUE)
+
+# Rescale function for the Housing Index variable
+rescale_housing_index <- function(x) rescale(x, to = stock_range)
+
+# Plotting with corrected column names
+ggplot(data, aes(x = Year_Quarter)) +
+  geom_line(aes(y = Stocks_Closing_Price, color = "Stocks Closing Price"), size = 1.5) +
+  geom_line(aes(y = rescale_housing_index(data$Housing_Not_Seasonally_Adjusted_Purchase_Only_Index), color = "Housing Index"), size = 1.5) +
+  scale_y_continuous("Stocks Closing Price",
+                     sec.axis = sec_axis(~rescale_housing_index(.),
+                                         name = "Housing Index (Rescaled)")) +
+  labs(x = "Year and Quarter", title = "Stocks Closing Price and Housing Index Over Time") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(legend.position = "bottom") +
+  scale_color_manual(name = "Legend",
+                     values = c("Stocks Closing Price" = "blue", "Housing Index" = "red"))
+```
+
+
+```{r}
+library(ggplot2)
+library(scales)  # For formatting y-axis
+
+ggplot(data, aes(x = Year)) +
+  geom_line(aes(y = Stocks_Closing_Price, color = "Stocks Closing Price"), size = 1.5) +
+  geom_line(aes(y = Housing_Not_Seasonally_Adjusted_Purchase_Only_Index, color = "Not Seasonally Adjusted Housing Index"), size = 1.5) +
+  scale_y_continuous(labels = comma) +
+  scale_color_manual(name = "Legend",
+                     values = c("Stocks Closing Price" = "red", 
+                                "Not Seasonally Adjusted Housing Index" = "green")) +
+  ggtitle("Stock Market and Housing Index Trends Over Time") +
+  ylab("Index Value") +
+  xlab("Year") +
+  theme_minimal() +  # Using a minimal theme for better aesthetics
+  theme(legend.position = "bottom") 
+```
+
+### Time Series Analysis
+```{r}
+library(forecast)
+
+# Convert Year and Quarter to a Date format for easier time series analysis
+data$Date <- as.Date(paste(data$Year, (data$Quarter - 1) * 3 + 1, "01", sep = "-"))
+
+# Create a time series object for the Housing Index
+ts_data <- ts(data[["Housing_Not_Seasonally_Adjusted_Purchase_Only_Index"]], 
+              frequency = 4, 
+              start = c(data$Year[1], data$Quarter[1]))
+
+# Explanation: Frequency is set to 4 due to quarterly data (4 quarters per year)
+```
+
+```{r}
+# Plotting a seasonal plot to visualize quarterly patterns in the Housing Index
+plot(seasonplot(ts_data), 
+     xlab = "Year and Quarter", 
+     ylab = "Non-Seasonally Adjusted Housing Purchase Only Index", 
+     main = "Seasonal Plot of Non-Seasonally Adjusted Housing Purchase Only Index by Quarter")
+
+```
+
+```{r}
+ggtsdisplay(ts_data)
+```
+
+```{r}
+ggAcf(ts_data, lag=48, main = "Autocorrelation Function (ACF)", xlab = "Lag", ylab = "ACF") 
+```
+```{r}
+pacf(ts_data, main = "Partial Autocorrelation Function (PACF)", xlab = "Lag", ylab = "PACF")
+```
+```{r}
+# Calculate time as a continuous variable
+data$times <- seq_along(ts_data)
+
+# Generate dummy variables for quarters
+data$Q1 <- ifelse(data$Quarter == 1, 1, 0)
+data$Q2 <- ifelse(data$Quarter == 2, 1, 0)
+data$Q3 <- ifelse(data$Quarter == 3, 1, 0)
+data$Q4 <- ifelse(data$Quarter == 4, 1, 0) 
+
+# Sinusoidal components for capturing seasonal variations
+data$sint <- sin(2 * pi * data$times / 4)
+data$cost <- cos(2 * pi * data$times / 4)
+
+lsfit <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ poly(data$times, 3) + Q2 + Q3 + Q4 + + Stocks_Open_Price + High_Trade_Price + Low_Trade_Price + Volume, data = data)
+summary(lsfit)
+acf(residuals(lsfit))
+
+# Model with sinusoidal terms for seasonal adjustment
+lsfit_Q1 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ poly(data$times, 3) + data$sint + data$cost, data = data)
+summary(lsfit_Q1)
+acf(residuals(lsfit_Q1))
+```
+
+
+```{r}
+plot(data$times, ts_data, type = "l", main = "New York Quarterly House Pricing Index 2000-2023", col = 4)
+lines(data$times, fitted(lsfit), col = 1)
+lines(data$times, fitted(lsfit_Q1), col = 3)
+legend("topleft", legend = c("Observed", "lsfit", "lsfit_Q1"), col = c(4, 1, 3), lty = 1, cex = 0.8)
+```
+
+
+```{r}
+aic<-round(c(AIC(lsfit), AIC(lsfit_Q1)),2)
+bic<-round(c(BIC(lsfit), BIC(lsfit_Q1)),2)
+adjr2<-round(c(summary(lsfit)$ad,summary(lsfit_Q1)$ad),2)
+rbind(c("lsfit", "lsfit_Q1"), aic,bic,adjr2)
+```
+```{r}
+lsfit          
+```
+### Small ARIMA Model
+
+```{r}
+library(forecast)
+ts_model <- auto.arima(ts_data)
+summary(ts_model)
+```
+
+
+For the ARIMA model:
+
+AIC: 436.08
+BIC: 446.03
+Comparing with the previous models:
+
+lsfit:
+AIC: 738.83
+BIC: 759.17
+Adjusted R-squared: 0.96
+lsfit_Q1:
+AIC: 737.62
+BIC: 755.43
+Adjusted R-squared: 0.96
+The ARIMA model has considerably lower AIC and BIC values compared to the lsfit and lsfit_Q1 models, indicating that it provides a better fit to the data according to these criteria. However, the adjusted R-squared values for all three models are the same, suggesting similar goodness of fit in terms of explaining the variability in the data after adjusting for the number of predictors.
+
+The ARIMA(1,1,0)(0,1,2)[4] model can be represented by the following equation:
+
+Δyt = ϕ1Δyt−1+at−θ1at−1−θ2at−2
+Where:
+
+Δyt represents the differenced series at time t,
+ϕ1 is the autoregressive parameter of lag 1,
+at is the error term at time t,
+θ1 and θ2 are the moving average parameters at lags 1 and 2 respectively.
+This equation describes how the current value of the differenced series (Δyt) is related to its lagged value, the error terms, and the moving average components.
+
+Plugging in the numbers:
+The equation for the ARIMA(1,1,0)(0,1,2)[4] model becomes:
+Δyt=0.6999Δyt−1+at−(−0.4232)at−1−(−0.2096)at−2
+
+```{r}
+decomp <- stl(ts_data, s.window = "periodic")
+plot(decomp)
+```
+
+```{r}
+n_periods <- 12  # Number of periods to forecast
+
+forecast_ts <- forecast(ts_model, h = n_periods)
+plot(forecast_ts, main = "ARIMA Forecast", xlab = "Time", ylab = "Data")
+lines(data$times, ts_data, col = "blue")  # Adding historical data to the forecast plot
+legend("topright", legend = c("Original Data", "Forecast"), col = c("blue", "red"), lty = 1)
+```
+```{r}
+residuals <- resid(ts_model)
+acf(residuals, main = "ACF of Model Residuals")
+```
+```{r}
+model_info <- ts_model$model
+print(model_info)
+```
+```{r}
+plot(diff(ts_data, 1), main = "One Lag Difference", ylab = "Difference", xlab = "Time")
+```
+```{r}
+plot(diff(diff(ts_data, 1), 12), main = "One Year Difference of the One-Lag Differences", ylab = "Difference", xlab = "Time")
+```
+
+### Big ARIMA Model
+
+```{r}
+# For ARIMA(1,1,0) with covariates, excluding seasonal adjustments
+X_mat <- cbind(
+  stocks = data$Stocks_Closing_Price,
+  times = data$times,
+  Q2 = data$Q2, 
+  Q3 = data$Q3, 
+  Q4 = data$Q4
+)
+
+# Exclude 'seasonal' argument since it's not needed for ARIMA(1,1,0) model
+arima_model_110 <- Arima(ts_data, order = c(1,1,0), seasonal=c(0,0,2), xreg = X_mat)
+summary(arima_model_110)
+```
+```{r}
+acf(arima_model_110$residuals)
+```
+
+```{r}
+# Plot the House Pricing Index and model fits
+plot(data$times, ts_data, type = "l", main = "House Pricing Index")
+lines(data$times, fitted(lsfit), col = 2)
+lines(data$times, fitted(lsfit_Q1), col = 3)
+lines(data$times, fitted(ts_model), col = 4)
+lines(data$times, fitted(arima_model_110), col = 5) 
+legend("topright", 
+       legend = c("ts_data", "lsfit", "lsfit_Q1", "Auto ARIMA","ARIMA(1,1,0)"), 
+       col = c(1,2,3,4,5), 
+       lty = 1, 
+       cex = 0.5)
+
+```
+- The overlapping lines of 'lsfit', 'lsfit_Q1', and 'arima_model110' suggest that these models provide similar explanations for the data's trend, indicating that their predictions are closely aligned.
+
+
+
+```{r}
+lm_model_1 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ poly(Year, 2) + Quarter + log(Stocks_Open_Price) + log(High_Trade_Price), data = data)
+
+lm_model_2 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ poly(Year, 2) + Quarter + poly(Volume), data = data)
+
+lm_model_3 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ log(Stocks_Open_Price) * log(High_Trade_Price) * log(Adjusted_Close_price) + Quarter, data = data)
+
+lm_model_4 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~  log(Stocks_Open_Price) * log(High_Trade_Price) * log(Adjusted_Close_price)+Housing_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters, data = data)
+
+lm_model_5 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~  log(Stocks_Open_Price) + log(High_Trade_Price) + Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters*Housing_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters, data = data)
+
+lm_model_6 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~  poly(Year, 2) + Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_Quarter * Housing_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters + sqrt(Volume) + Quarter, data = data)
+
+lm_model_7 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~  log(Stocks_Open_Price) + log(High_Trade_Price) + Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_Quarter * Housing_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters, data = data)
+
+lm_model_8 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_Quarter * Housing_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters + log(Adjusted_Close_price) + poly(Year, 3), data = data)
+
+lm_model_9 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ log(Stocks_Open_Price) * log(High_Trade_Price) * log(Adjusted_Close_price) + Housing_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters, data = data)
+
+lm_model_10 <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ log(Adjusted_Close_price) + Quarter * Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_Quarter * sqrt(Volume), data = data)
+```
+
+
+
+```{r}
+model_stats <- data.frame(
+  Model = c("lm_model_1","lm_model_2","lm_model_3","lm_model_4","lm_model_5","lm_model_6","lm_model_7","lm_model_8","lm_model_9","lm_model_10"),
+  Rsquared = numeric(10),
+  AdjRsquared = numeric(10),
+  stringsAsFactors = FALSE
+)
+
+models <- list(lm_model_1,lm_model_2,lm_model_3,lm_model_4,lm_model_5,lm_model_6,lm_model_7,lm_model_8,lm_model_9,lm_model_10)
+
+for (i in seq_along(models)) {
+  model_stats$Rsquared[i] <- summary(models[[i]])$r.squared
+  model_stats$AdjRsquared[i] <- summary(models[[i]])$adj.r.squared
+}
+print(model_stats)
+```
+
+
+```{r}
+anova(lm_model_1,lm_model_2,lm_model_3,lm_model_4,lm_model_5,lm_model_6,lm_model_7,lm_model_8,lm_model_9,lm_model_10)
+```
+
+
+
+
+### MODEL SELECTION 
+
+```{r}
+# Create an index for the training and testing sets
+set.seed(123)  # Set a seed for reproducibility
+split_index <- sample(1:nrow(data), floor(nrow(data) * 0.7))  # Adjust the split ratio as needed
+
+# Create training and testing datasets
+train_data <- data[split_index, ]
+test_data <- data[-split_index, ]
+```
+
+```{r}
+# Count the number of complete cases in the training data
+full_count <- sum(complete.cases(train_data))
+full_count
+```
+
+```{r}
+str(train_data)
+```
+
+```{r}
+# Assuming 'Housing_Seasonally_Adjusted_Purchase_Only_Index' needs to be removed
+train_data <- train_data[, !names(train_data) %in% "Housing_Seasonally_Adjusted_Purchase_Only_Index"]
+```
+
+Modeling and Diagnostics for LR
+
+```{r}
+library(car)
+
+full_model <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ ., data = train_data)
+
+summary(full_model)
+par(mfrow=c(2,2))
+plot(full_model)
+par(mfrow=c(1,1))
+influencePlot(full_model)
+```
+
+```{r}
+plot(full_model)
+```
+
+**All Subsets Regression**
+
+```{r}
+library(leaps)
+
+model_sub <- regsubsets(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ Year + Quarter + Stocks_Open_Price + High_Trade_Price + Low_Trade_Price + Stocks_Closing_Price + Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_Quarter + Housing_Not_Seasonally_Adjusted_Purchase_Only_Index_percent_Change_Over_Previous_4_Quarters + Date, data = train_data)
+
+# View a summary of the all subsets regression
+summary(model_sub)
+
+```
+
+See the results:
+
+```{r}
+# Extract summary of best models for each number of predictors
+sbest <- summary(model_sub)
+```
+
+See what is inside sbest:
+
+```{r}
+names(sbest)
+```
+
+To see the models and their Cp, adjr2, bic and aic:
+
+```{r}
+cbind(sbest$which ,sbest$cp)
+```
+
+```{r}
+cbind(sbest$which ,sbest$adjr2)
+```
+
+```{r}
+cbind(sbest$which ,sbest$bic)
+```
+
+```{r}
+cbind(sbest$which ,sbest$aic)
+```
+
+
+```{r}
+reg_model <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ ., data = train_data)
+
+# Summary of the regression model to see coefficients and diagnostics
+summary(reg_model)
+```
+
+
+
+
+```{r}
+
+mybestmodel <- function(Xnames, Yname, dataset, p, crit = "bic") { 
+    if (crit == "Cp") {
+        n <- dim(dataset)[1]
+        fullMSE <- summary(lm(as.formula(paste(Yname, "~ .")), data = dataset))$sigma^2
+    }
+
+    varsel <- lapply(0:p, function(x) combn(p, x))
+    modcrit <- numeric(p)
+    form <- character(p)
+
+    for (k in 1:p) {
+        s <- dim(varsel[[k + 1]])[2]
+        tempform <- character(s)
+        tempcrit <- numeric(s)
+
+        for (j in 1:s) {
+            temp <- Xnames[varsel[[k + 1]][, j]]
+            tempform[j] <- ifelse(length(temp) > 1,
+                paste(temp, collapse = " + "), temp)
+            tempform[j] <- paste(Yname, tempform[j], sep = '~')
+            tempmod <- lm(as.formula(tempform[j]), data = dataset)
+            if (crit == "aic") {
+                tempcrit[j] <- AIC(tempmod)
+            }
+            if (crit == "bic") {
+                tempcrit[j] <- BIC(tempmod)
+            }
+            if (crit == "r2") {
+                tempcrit[j] <- summary(tempmod)$adj.r.squared
+            }
+            if (crit == "Cp") {
+                tempcrit[j] <- sum(tempmod$residuals^2) / fullMSE + 2 * (k + 1) - n
+            }
+        }
+
+        # best model of size k
+        if (crit %in% c("aic", "bic")) {
+            best <- which.min(tempcrit)
+        }
+        if (crit == "r2") {
+            best <- which.max(tempcrit)
+        }
+        if (crit == "Cp") {
+            best <- which.min(abs(tempcrit - (k + 1)))
+        }
+        form[k] <- tempform[best]
+        modcrit[k] <- tempcrit[best]
+    }
+
+    if (crit %in% c("aic", "bic")) {
+        out <- form[which.min(modcrit)]
+    }
+    if (crit == "r2") {
+        out <- form[which.max(modcrit)]
+    }
+    if (crit == "Cp") {
+        out <- form[which.min(abs(modcrit - (2:p)))]
+    }
+    return(out)
+}
+```
+
+
+```{r}
+suppressWarnings({
+p <- length(train_data)-1
+Xnames <- names(train_data)[-1]
+Yname <- "Housing_Not_Seasonally_Adjusted_Purchase_Only_Index"
+
+bic_form <- mybestmodel(Xnames, Yname, train_data, p, crit = "bic")
+model_bic<-lm(as.formula(bic_form), data=train_data)
+bic_form
+
+print(paste("BIC form:", bic_form))
+})
+```
+
+```{r}
+suppressWarnings({
+aic_form<-mybestmodel(Xnames, Yname, train_data, p, crit="aic")
+model_aic<-lm(as.formula(aic_form), data=train_data)
+aic_form
+
+print(paste("AIC form:", aic_form))
+})
+```
+
+```{r}
+suppressWarnings({
+  cp_form<-mybestmodel(Xnames, Yname, train_data, p, crit="Cp")
+  model_Cp<-lm(as.formula(cp_form), data=train_data)
+  cp_form
+  
+  print(paste("CP form:", cp_form))
+})
+```
+
+```{r}
+suppressWarnings({
+r2_form<-mybestmodel(Xnames, Yname, train_data, p, crit="r2")
+model_r2<-lm(as.formula(r2_form), data=train_data)
+
+r2_form
+print(paste("R^2 form:", r2_form))
+})
+```
+
+```{r}
+mybestmodel <- function(Xnames, Yname, dataset, p, crit = "bic") {
+    # Precompute components for the Cp criterion
+    if (crit == "Cp") {
+        n <- nrow(dataset)
+        fullMSE <- summary(lm(as.formula(paste(Yname, "~ .")), data = dataset))$sigma^2
+    }
+
+    # Initialize storage for the best models and criteria
+    bestForms <- character(p)
+    bestCrits <- rep(Inf, p)
+
+    for (k in 1:p) {
+        combinations <- combn(Xnames, k)
+        tempCrits <- apply(combinations, 2, function(combo) {
+            formula <- paste(Yname, paste(combo, collapse = " + "), sep = "~")
+            model <- lm(as.formula(formula), data = dataset)
+            calculateCrit(model, crit, fullMSE, n, k)
+        })
+        bestIndex <- if (crit %in% c("aic", "bic", "Cp")) which.min(tempCrits) else which.max(tempCrits)
+        bestForms[k] <- paste(Yname, paste(combinations[, bestIndex], collapse = " + "), sep = "~")
+        bestCrits[k] <- tempCrits[bestIndex]
+    }
+
+    # Return the best overall model formula based on the selected criterion
+    if (crit %in% c("aic", "bic", "Cp")) {
+        return(bestForms[which.min(bestCrits)])
+    } else {
+        return(bestForms[which.max(bestCrits)])
+    }
+}
+
+calculateCrit <- function(model, crit, fullMSE, n, k) {
+    switch(crit,
+        "aic" = AIC(model),
+        "bic" = BIC(model),
+        "r2"  = summary(model)$adj.r.squared,
+        "Cp"  = sum(model$residuals^2) / fullMSE + 2 * (length(coef(model)) - 1) - n
+    )
+}
+
+```
+
+
+```{r}
+suppressWarnings({
+    p <- length(train_data) - 1
+    Xnames <- names(train_data)[-1]
+    Yname <- "Housing_Not_Seasonally_Adjusted_Purchase_Only_Index"
+
+    # Run for all criteria and store results
+    criteria <- c("bic", "aic", "Cp", "r2")
+    for (crit in criteria) {
+        form <- mybestmodel(Xnames, Yname, train_data, p, crit)
+        model <- lm(as.formula(form), data = train_data)
+        print(paste(toupper(crit), "form:", form))
+    }
+})
+
+```
+
+
+**Backwards Selection**
+
+direction=“backward”
+
+Now finding the best model using backward stepwise selection:
+
+
+```{r}
+full_modl_train <- lm(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ ., data = train_data)
+
+modback <- step(full_modl_train,direction = "backward",  trace = 0)
+
+summary(modback)
+
+```
+
+```{r}
+plot(modback)
+```
+
+
+```{r}
+Criteria<-function(model){
+out<-data.frame(`p+1`=length(model$coef),
+R2adj=summary(model)$adj,
+AIC=AIC(model),
+BIC=BIC(model))
+return(out)
+}
+```
+
+```{r}
+rbind(regS=Criteria(reg_model),
+bicm=Criteria(model_bic),
+aicm=Criteria(model_aic),
+adjr2m=Criteria(model_r2),
+cpm=Criteria(model_Cp),
+bsel=Criteria(modback)
+)
+```
+
+### Weighted Regression Model
+
+```{r}
+selected_model = lm(as.formula(modback), data = train_data)
+# Calculating the residuals
+fit.as.sd<-abs(selected_model$fitted.values)
+w<-1/fit.as.sd
+weighted_model <- lm(as.formula(modback), data = train_data, weights = w)
+summary(weighted_model)
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(weighted_model)
+par(mfrow=c(1,1))
+```
+
+### Random Forest Algorithm
+
+```{r}
+library(randomForest)
+
+# Make syntactically valid column names for train_data
+names(train_data) <- make.names(names(train_data))
+
+# Fit random forest model excluding the Seasonally Adjusted Index
+rf_model <- randomForest(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ ., data = train_data)
+
+print(rf_model)
+
+```
+
+```{r}
+plot(rf_model)
+```
+
+```{r}
+var_importance <- importance(rf_model)
+var_importance <- var_importance[order(var_importance, decreasing = TRUE),]
+barplot(var_importance, main = "Variable Importance Plot")
+```
+
+```{r}
+plot(train_data$Housing_Not_Seasonally_Adjusted_Purchase_Only_Index,predict(rf_model),
+xlab="Actual Housing_Not_Seasonally_Adjusted_Purchase_Only_Index",ylab="Predicted Housing_Not_Seasonally_Adjusted_Purchase_Only_Index")
+abline(0,1,lwd=3,col="blue")
+```
+
+
+### Generalization Error
+
+```{r}
+calculate_generalization_error <- function(model, test_data) 
+  {
+  predicted_values <- predict(model, newdata = test_data)
+  actual_values <- test_data$Housing_Not_Seasonally_Adjusted_Purchase_Only_Index
+  prediction_error <- mean((predicted_values - actual_values)^2)
+  
+  cat("Selected Model:\n")
+  print(model)
+  cat("\nPrediction Error (MSE):", prediction_error, "\n")
+  
+  return(prediction_error)
+}
+
+generalization_error1 <- calculate_generalization_error(model_bic, test_data)
+```
+
+```{r}
+generalization_error1 <- calculate_generalization_error(reg_model, test_data)
+generalization_error2 <- calculate_generalization_error(model_bic, test_data)
+generalization_error3 <- calculate_generalization_error(model_aic, test_data)
+generalization_error4 <- calculate_generalization_error(model_Cp, test_data)
+generalization_error5 <- calculate_generalization_error(model_r2, test_data)
+generalization_error6 <- calculate_generalization_error(modback, test_data)
+generalization_error7 <- calculate_generalization_error(rf_model, test_data)
+generalization_error8 <- calculate_generalization_error(weighted_model, test_data)
+```
+
+```{r}
+ge_df = data.frame(
+  Model = c("reg_model","BIC","AIC","CP", "R^2", "modback", "rf_model", "weighted_model"),
+  Generalization_Error = c(generalization_error1, generalization_error2, generalization_error3, generalization_error4, generalization_error5, generalization_error6, generalization_error7,generalization_error8))
+ge_df
+```
+
+
+```{r}
+calculate_generalization_error(rf_model, test_data)
+```
+
+Based on this, our backward selection model is a better model due to its less generalization error.
+
+Final Model: modback
+
+```{r}
+summary(modback)
+```
+
+```{r}
+plot(modback)
+```
+
+### Cross Validation
+
+```{r}
+rf.sscv = function(fit, data, p=0.65, B, mtry=fit$mtry, ntree=fit$ntree) {
+  # Initialize vectors to store performance metrics
+  MSE = numeric(B)
+  MAE = numeric(B)
+  MAPE = numeric(B)
+  AdjR2 = numeric(B)
+
+  # Extract the response variable from the model fit
+  y = fit$y
+  
+  # Determine the number of observations in the dataset
+  n = nrow(data)
+  
+  # Calculate the size of each subsample
+  subsample_size = floor(n * p)
+  
+  # Perform B iterations of subsampling
+  for (i in 1:B) {
+    # Randomly sample indices for the training set
+    train_indices = sample(1:n, subsample_size, replace = FALSE)
+    
+    # Fit the Random Forest model on the subsample
+    fit2 = randomForest(formula(fit), data = data[train_indices, ], mtry = mtry, ntree = ntree)
+    
+    # Predict on the out-of-bag (OOB) data
+    y_new = predict(fit2, newdata = data[-train_indices, ])
+    
+    # Calculate performance metrics
+    MSE[i] = mean((y[-train_indices] - y_new) ^ 2)
+    MAE[i] = mean(abs(y[-train_indices] - y_new))
+    MAPE[i] = mean(abs(y[-train_indices] - y_new) / (y[-train_indices] + .000001))
+    AdjR2[i] = 1 - MSE[i] / mean((y[-train_indices] - mean(y[-train_indices])) ^ 2)
+  }
+  
+  # Calculate average performance metrics
+  RMSEP = sqrt(mean(MSE))
+  MAEP = mean(MAE)
+  MAPEP = mean(MAPE)
+  AdjR2P = mean(AdjR2)
+  
+  # Return a data frame with the calculated performance metrics
+  results = data.frame(RMSEP = RMSEP, MAEP = MAEP, MAPEP = MAPEP, AdjR2P = AdjR2P)
+  return(results)
+}
+
+```
+
+
+
+```{r}
+results <- list()
+x = 0 
+y = 0
+for (i in seq(2, 6, by = 1)) {
+  model_rf1 <- randomForest(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ ., data = train_data, mtry = i, ntree = 100)
+  cv_results <- rf.sscv(model_rf1, data = train_data, B = 5)
+  if(cv_results$AdjR2P > x)
+  {
+    x = cv_results$AdjR2P
+    y = i
+  }
+  results[[paste("mtry", i)]] <- cv_results
+  print(model_rf1)
+}
+```
+```{r}
+results
+```
+
+```{r}
+print(paste("The Best Model from Cross-validation is the model with mtry:", y, "and adjr2:", x))
+```
+
+
+#### For Final RF Model
+
+```{r}
+rf_final = randomForest(Housing_Not_Seasonally_Adjusted_Purchase_Only_Index ~ .,data=train_data, mtry=y, ntree=100)
+rf_final
+```
+
+```{r}
+plot(train_data$Housing_Not_Seasonally_Adjusted_Purchase_Only_Index,predict(rf_final),
+xlab="Actual Housing_Not_Seasonally_Adjusted_Purchase_Only_Index",ylab="Predicted Housing_Not_Seasonally_Adjusted_Purchase_Only_Index")
+abline(0,1,lwd=3,col="blue")
+```
+
+### To Find Important Predictors in the model
+
+```{r}
+varImpPlot(rf_final)
+```
+
+```{r}
+importance(rf_final,type=1)
+```
+
+### Finally we predict Housing_Not_Seasonally_Adjusted_Purchase_Only_Index using test data
+
+```{r}
+PredAcc <- function(actual, predicted) {
+    mse <- mean((actual - predicted)^2)
+    mae <- mean(abs(actual - predicted))
+    mape <- mean(abs((actual - predicted) / actual))
+    rmse <- sqrt(mse)
+    
+    # Calculate R-squared
+    ss_res <- sum((actual - predicted)^2)
+    ss_tot <- sum((actual - mean(actual))^2)
+    r_squared <- 1 - (ss_res / ss_tot)
+
+    # Return a list of metrics
+    return(list(MSE = mse, MAE = mae, MAPE = mape, RMSE = rmse, R_squared = r_squared))
+}
+
+ypred = predict(rf_final, newdata = test_data)
+PredAcc(test_data$Housing_Not_Seasonally_Adjusted_Purchase_Only_Index, ypred)
+```
